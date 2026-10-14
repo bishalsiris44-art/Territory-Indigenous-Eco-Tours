@@ -1,0 +1,4 @@
+vehicle_id,registration_num,vehicle_type,capacity,vehicle_status
+1,NT-4WD-18,4WD,8,Available
+2,NT-BUS-07,Minibus,14,Available
+3,NT-BUS-22,Coach,28,Maintenance

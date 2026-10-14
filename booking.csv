@@ -1,0 +1,8 @@
+booking_id,number_of_guests,booking_date,booking_status,tourist_id,operation_id
+1,2,2026-05-02,Confirmed,1,1
+2,1,2026-05-11,Completed,2,2
+3,3,2026-06-01,Confirmed,3,3
+4,2,2026-06-20,Confirmed,4,3
+5,1,2026-07-01,Cancelled,1,4
+6,4,2026-07-15,Pending,2,5
+7,2,2026-04-28,Completed,3,1
