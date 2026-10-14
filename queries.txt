@@ -1,0 +1,15 @@
+// Territory Indigenous & Eco Tours
+// Neo4j query file — verification starter.
+// Task 3/4/5 queries can be appended after Task 2 is successfully imported.
+
+MATCH (n)
+RETURN labels(n) AS labels, count(*) AS count
+ORDER BY labels;
+
+MATCH ()-[r]->()
+RETURN type(r) AS relationship, count(*) AS count
+ORDER BY relationship;
+
+MATCH p=()-[r]->()
+RETURN p
+LIMIT 100;
