@@ -1,0 +1,318 @@
+// Territory Indigenous & Eco Tours
+// Task 2 — Neo4j CSV migration
+// Generated from Relations_4Scripts(1).sql
+//
+// IMPORTANT:
+// 1. Put all CSV files in Neo4j's import directory.
+// 2. Run this script while connected to the territorytours database.
+// 3. Run sections in order.
+//
+// Graph mapping:
+// Tourist-[:MAKES]->Booking-[:BOOKS]->TourOperation-[:FOR_PACKAGE]->TourPackage
+// Booking-[:HAS_REVIEW]->Review
+// TourOperation-[:USES]->Vehicle
+// TourOperation-[:GUIDED_BY]->TourGuide
+// TourPackage-[:VISITS]->TourSite
+// TourPackage-[:INCLUDES {seq_no}]->Activity
+// (:TourPackage:IndigenousTour)-[:SUPPORTED_BY]->IndigenousCommunity
+
+// ============================================================
+// A. CONSTRAINTS / INDEXES
+// ============================================================
+// Unique constraints also create backing indexes for the ID properties.
+
+CREATE CONSTRAINT tourist_id_unique IF NOT EXISTS
+FOR (n:Tourist) REQUIRE n.tourist_id IS UNIQUE;
+
+CREATE CONSTRAINT booking_id_unique IF NOT EXISTS
+FOR (n:Booking) REQUIRE n.booking_id IS UNIQUE;
+
+CREATE CONSTRAINT review_id_unique IF NOT EXISTS
+FOR (n:Review) REQUIRE n.review_id IS UNIQUE;
+
+CREATE CONSTRAINT operation_id_unique IF NOT EXISTS
+FOR (n:TourOperation) REQUIRE n.operation_id IS UNIQUE;
+
+CREATE CONSTRAINT package_id_unique IF NOT EXISTS
+FOR (n:TourPackage) REQUIRE n.package_id IS UNIQUE;
+
+CREATE CONSTRAINT vehicle_id_unique IF NOT EXISTS
+FOR (n:Vehicle) REQUIRE n.vehicle_id IS UNIQUE;
+
+CREATE CONSTRAINT guide_id_unique IF NOT EXISTS
+FOR (n:TourGuide) REQUIRE n.guide_id IS UNIQUE;
+
+CREATE CONSTRAINT activity_id_unique IF NOT EXISTS
+FOR (n:Activity) REQUIRE n.activity_id IS UNIQUE;
+
+CREATE CONSTRAINT site_id_unique IF NOT EXISTS
+FOR (n:TourSite) REQUIRE n.site_id IS UNIQUE;
+
+CREATE CONSTRAINT community_id_unique IF NOT EXISTS
+FOR (n:IndigenousCommunity) REQUIRE n.community_id IS UNIQUE;
+
+// Additional indexes useful for common lookups.
+CREATE INDEX package_name_index IF NOT EXISTS
+FOR (n:TourPackage) ON (n.package_name);
+
+CREATE INDEX operation_date_index IF NOT EXISTS
+FOR (n:TourOperation) ON (n.operation_date);
+
+CREATE INDEX booking_status_index IF NOT EXISTS
+FOR (n:Booking) ON (n.booking_status);
+
+
+// ============================================================
+// B. CREATE CORE NODES
+// ============================================================
+
+LOAD CSV WITH HEADERS FROM 'file:///tourist.csv' AS row
+CREATE (:Tourist {
+  tourist_id: toInteger(row.tourist_id),
+  first_name: row.first_name,
+  last_name: row.last_name,
+  nationality: row.nationality
+});
+
+LOAD CSV WITH HEADERS FROM 'file:///vehicle.csv' AS row
+CREATE (:Vehicle {
+  vehicle_id: toInteger(row.vehicle_id),
+  registration_num: row.registration_num,
+  vehicle_type: row.vehicle_type,
+  capacity: toInteger(row.capacity),
+  vehicle_status: row.vehicle_status
+});
+
+LOAD CSV WITH HEADERS FROM 'file:///indigenous_community.csv' AS row
+CREATE (:IndigenousCommunity {
+  community_id: toInteger(row.community_id),
+  community_name: row.community_name,
+  location: row.location,
+  contact_person: row.contact_person
+});
+
+LOAD CSV WITH HEADERS FROM 'file:///tour_package.csv' AS row
+CREATE (:TourPackage {
+  package_id: toInteger(row.package_id),
+  package_name: row.package_name,
+  description: row.description,
+  duration_days: toInteger(row.duration_days),
+  price: toFloat(row.price),
+  maximum_capacity: toInteger(row.maximum_capacity)
+});
+
+LOAD CSV WITH HEADERS FROM 'file:///tour_guide.csv' AS row
+CREATE (:TourGuide {
+  guide_id: toInteger(row.guide_id),
+  first_name: row.first_name,
+  last_name: row.last_name,
+  experience_years: toFloat(row.experience_years)
+});
+
+LOAD CSV WITH HEADERS FROM 'file:///activity.csv' AS row
+CREATE (:Activity {
+  activity_id: toInteger(row.activity_id),
+  activity_name: row.activity_name,
+  description: row.description,
+  duration_hours: toFloat(row.duration_hours)
+});
+
+LOAD CSV WITH HEADERS FROM 'file:///tour_site.csv' AS row
+CREATE (:TourSite {
+  site_id: toInteger(row.site_id),
+  site_name: row.site_name,
+  location: row.location,
+  accessibility_info: row.accessibility_info
+});
+
+LOAD CSV WITH HEADERS FROM 'file:///tour_operation.csv' AS row
+CREATE (:TourOperation {
+  operation_id: toInteger(row.operation_id),
+  operation_date: date(row.operation_date),
+  start_time: row.start_time,
+  end_time: row.end_time,
+  meeting_point: row.meeting_point
+});
+
+LOAD CSV WITH HEADERS FROM 'file:///booking.csv' AS row
+CREATE (:Booking {
+  booking_id: toInteger(row.booking_id),
+  number_of_guests: toInteger(row.number_of_guests),
+  booking_date: date(row.booking_date),
+  booking_status: row.booking_status
+});
+
+LOAD CSV WITH HEADERS FROM 'file:///review.csv' AS row
+CREATE (:Review {
+  review_id: toInteger(row.review_id),
+  rating: toInteger(row.rating),
+  review_comment: row.review_comment,
+  review_date: date(row.review_date)
+});
+
+
+// ============================================================
+// C. ADD MULTIVALUED ATTRIBUTES AS LIST PROPERTIES
+// ============================================================
+
+LOAD CSV WITH HEADERS FROM 'file:///tourist_phone.csv' AS row
+MATCH (t:Tourist {tourist_id: toInteger(row.tourist_id)})
+SET t.phones = coalesce(t.phones, []) + row.phone;
+
+LOAD CSV WITH HEADERS FROM 'file:///tourist_email.csv' AS row
+MATCH (t:Tourist {tourist_id: toInteger(row.tourist_id)})
+SET t.emails = coalesce(t.emails, []) + row.email;
+
+LOAD CSV WITH HEADERS FROM 'file:///guide_phone.csv' AS row
+MATCH (g:TourGuide {guide_id: toInteger(row.guide_id)})
+SET g.phones = coalesce(g.phones, []) + row.phone;
+
+LOAD CSV WITH HEADERS FROM 'file:///guide_email.csv' AS row
+MATCH (g:TourGuide {guide_id: toInteger(row.guide_id)})
+SET g.emails = coalesce(g.emails, []) + row.email;
+
+LOAD CSV WITH HEADERS FROM 'file:///community_contact_phone.csv' AS row
+MATCH (c:IndigenousCommunity {community_id: toInteger(row.community_id)})
+SET c.contact_phones = coalesce(c.contact_phones, []) + row.contact_phone;
+
+
+// ============================================================
+// D. TRANSLATE EER SPECIALISATIONS TO EXTRA NEO4J LABELS
+// ============================================================
+
+LOAD CSV WITH HEADERS FROM 'file:///eco_tour.csv' AS row
+MATCH (p:TourPackage {package_id: toInteger(row.package_id)})
+SET p:EcoTour,
+    p.environmental_focus = row.environmental_focus,
+    p.conservation_theme = row.conservation_theme;
+
+LOAD CSV WITH HEADERS FROM 'file:///indigenous_tour.csv' AS row
+MATCH (p:TourPackage {package_id: toInteger(row.package_id)})
+SET p:IndigenousTour,
+    p.cultural_focus = row.cultural_focus,
+    p.community_focus = row.community_focus;
+
+LOAD CSV WITH HEADERS FROM 'file:///indigenous_guide.csv' AS row
+MATCH (g:TourGuide {guide_id: toInteger(row.guide_id)})
+SET g:IndigenousGuide,
+    g.indigenous_expertise = row.indigenous_expertise;
+
+LOAD CSV WITH HEADERS FROM 'file:///eco_guide.csv' AS row
+MATCH (g:TourGuide {guide_id: toInteger(row.guide_id)})
+SET g:EcoGuide,
+    g.eco_expertise = row.eco_expertise;
+
+LOAD CSV WITH HEADERS FROM 'file:///indigenous_activity.csv' AS row
+MATCH (a:Activity {activity_id: toInteger(row.activity_id)})
+SET a:IndigenousActivity,
+    a.cultural_type = row.cultural_type,
+    a.cultural_description = row.cultural_description;
+
+LOAD CSV WITH HEADERS FROM 'file:///eco_activity.csv' AS row
+MATCH (a:Activity {activity_id: toInteger(row.activity_id)})
+SET a:EcoActivity,
+    a.environmental_type = row.environmental_type,
+    a.difficulty_level = row.difficulty_level;
+
+LOAD CSV WITH HEADERS FROM 'file:///cultural_site.csv' AS row
+MATCH (s:TourSite {site_id: toInteger(row.site_id)})
+SET s:CulturalSite,
+    s.cultural_significance = row.cultural_significance,
+    s.heritage_status = row.heritage_status;
+
+LOAD CSV WITH HEADERS FROM 'file:///eco_site.csv' AS row
+MATCH (s:TourSite {site_id: toInteger(row.site_id)})
+SET s:EcoSite,
+    s.ecosystem_type = row.ecosystem_type,
+    s.conservation_status = row.conservation_status;
+
+
+// ============================================================
+// E. CREATE RELATIONSHIPS
+// ============================================================
+
+// Tourist -> Booking
+LOAD CSV WITH HEADERS FROM 'file:///booking.csv' AS row
+MATCH (t:Tourist {tourist_id: toInteger(row.tourist_id)})
+MATCH (b:Booking {booking_id: toInteger(row.booking_id)})
+MERGE (t)-[:MAKES]->(b);
+
+// Booking -> TourOperation
+LOAD CSV WITH HEADERS FROM 'file:///booking.csv' AS row
+MATCH (b:Booking {booking_id: toInteger(row.booking_id)})
+MATCH (o:TourOperation {operation_id: toInteger(row.operation_id)})
+MERGE (b)-[:BOOKS]->(o);
+
+// Booking -> Review
+LOAD CSV WITH HEADERS FROM 'file:///review.csv' AS row
+MATCH (b:Booking {booking_id: toInteger(row.booking_id)})
+MATCH (r:Review {review_id: toInteger(row.review_id)})
+MERGE (b)-[:HAS_REVIEW]->(r);
+
+// TourOperation -> TourPackage
+LOAD CSV WITH HEADERS FROM 'file:///tour_operation.csv' AS row
+MATCH (o:TourOperation {operation_id: toInteger(row.operation_id)})
+MATCH (p:TourPackage {package_id: toInteger(row.package_id)})
+MERGE (o)-[:FOR_PACKAGE]->(p);
+
+// TourOperation -> Vehicle
+LOAD CSV WITH HEADERS FROM 'file:///tour_operation.csv' AS row
+MATCH (o:TourOperation {operation_id: toInteger(row.operation_id)})
+MATCH (v:Vehicle {vehicle_id: toInteger(row.vehicle_id)})
+MERGE (o)-[:USES]->(v);
+
+// TourOperation -> TourGuide
+LOAD CSV WITH HEADERS FROM 'file:///operation_guide.csv' AS row
+MATCH (o:TourOperation {operation_id: toInteger(row.operation_id)})
+MATCH (g:TourGuide {guide_id: toInteger(row.guide_id)})
+MERGE (o)-[:GUIDED_BY]->(g);
+
+// TourPackage -> TourSite
+LOAD CSV WITH HEADERS FROM 'file:///package_site.csv' AS row
+MATCH (p:TourPackage {package_id: toInteger(row.package_id)})
+MATCH (s:TourSite {site_id: toInteger(row.site_id)})
+MERGE (p)-[:VISITS]->(s);
+
+// TourPackage -> Activity, preserving EER sequence qualifier
+LOAD CSV WITH HEADERS FROM 'file:///package_activity.csv' AS row
+MATCH (p:TourPackage {package_id: toInteger(row.package_id)})
+MATCH (a:Activity {activity_id: toInteger(row.activity_id)})
+MERGE (p)-[r:INCLUDES]->(a)
+SET r.seq_no = toInteger(row.seq_no);
+
+// IndigenousTour -> IndigenousCommunity
+LOAD CSV WITH HEADERS FROM 'file:///indigenous_tour.csv' AS row
+MATCH (p:TourPackage:IndigenousTour {package_id: toInteger(row.package_id)})
+MATCH (c:IndigenousCommunity {community_id: toInteger(row.community_id)})
+MERGE (p)-[:SUPPORTED_BY]->(c);
+
+
+// ============================================================
+// F. VERIFICATION
+// ============================================================
+
+// Expected core nodes = 41:
+// 4 Tourist + 7 Booking + 4 Review + 5 TourOperation +
+// 4 TourPackage + 3 Vehicle + 3 TourGuide + 4 Activity +
+// 4 TourSite + 3 IndigenousCommunity = 41.
+//
+// Expected relationships = 42:
+// MAKES 7, BOOKS 7, HAS_REVIEW 4, FOR_PACKAGE 5, USES 5,
+// GUIDED_BY 6, VISITS 5, INCLUDES 6, SUPPORTED_BY 2.
+
+MATCH (n)
+RETURN labels(n) AS labels, count(*) AS count
+ORDER BY labels;
+
+MATCH ()-[r]->()
+RETURN type(r) AS relationship, count(*) AS count
+ORDER BY relationship;
+
+// Visual verification
+MATCH p=()-[r]->()
+RETURN p
+LIMIT 100;
+
+// Index/constraint verification
+SHOW CONSTRAINTS;
+SHOW INDEXES;
