@@ -1,15 +1,71 @@
+
+//
+// PRT563 - ADVANCED DATA MANAGEMENT
 // Territory Indigenous & Eco Tours
-// Neo4j query file — verification starter.
-// Task 3/4/5 queries can be appended after Task 2 is successfully imported.
+// TASK 3 - GRAPH DATABASE QUERIES
+//
 
-MATCH (n)
-RETURN labels(n) AS labels, count(*) AS count
-ORDER BY labels;
+// ========================================
+// QUERY 1: VIEW AVAILABLE TOUR PACKAGES
+// ========================================
 
-MATCH ()-[r]->()
-RETURN type(r) AS relationship, count(*) AS count
-ORDER BY relationship;
+MATCH (p:TourPackage)
+RETURN
+    p.package_id AS Package_ID,
+    p.package_name AS Tour_Name,
+    p.duration_days AS Duration_Days,
+    p.price AS Price_AUD,
+    p.maximum_capacity AS Capacity
+ORDER BY p.price ASC;
 
-MATCH p=()-[r]->()
-RETURN p
-LIMIT 100;
+
+// ========================================
+// QUERY 2: FIND CONFIRMED BOOKINGS
+// ========================================
+
+MATCH (t:Tourist)-[:MAKES]->(b:Booking)
+WHERE toLower(b.booking_status) = 'confirmed'
+RETURN
+    t.first_name + ' ' + t.last_name AS Tourist,
+    b.booking_id AS Booking_ID,
+    b.booking_date AS Booking_Date,
+    b.number_of_guests AS Guests
+ORDER BY Booking_Date;
+
+
+// ========================================
+// QUERY 3: TOURIST BOOKING JOURNEY
+// AND GUIDE ASSIGNMENT
+// ========================================
+
+MATCH (t:Tourist)-[:MAKES]->(b:Booking)
+      -[:BOOKS]->(o:TourOperation)
+      -[:FOR_PACKAGE]->(p:TourPackage)
+OPTIONAL MATCH (o)-[:GUIDED_BY]->(g:TourGuide)
+RETURN
+    t.first_name + ' ' + t.last_name AS Tourist,
+    b.booking_id AS Booking_ID,
+    p.package_name AS Tour,
+    o.operation_date AS Tour_Date,
+    collect(DISTINCT
+        g.first_name + ' ' + g.last_name
+    ) AS Assigned_Guides
+ORDER BY Tour_Date, Booking_ID;
+
+
+// ========================================
+// QUERY 4: TOUR POPULARITY
+// AND ESTIMATED REVENUE
+// ========================================
+
+MATCH (p:TourPackage)<-[:FOR_PACKAGE]-
+      (o:TourOperation)<-[:BOOKS]-(b:Booking)
+WHERE toLower(b.booking_status) = 'confirmed'
+RETURN
+    p.package_name AS Tour_Package,
+    count(b) AS Confirmed_Bookings,
+    sum(b.number_of_guests) AS Total_Guests,
+    sum(b.number_of_guests * p.price)
+        AS Estimated_Revenue_AUD
+ORDER BY Confirmed_Bookings DESC,
+         Estimated_Revenue_AUD DESC;
